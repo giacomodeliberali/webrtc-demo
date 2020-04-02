@@ -3,59 +3,127 @@
 <html>
 
 <head>
-  <title>WebSocket Chat Demo with WebRTC Calling</title>
-  <meta charset="utf-8">
-  <script type="text/javascript" src="./chatclient.js"></script>
-  <script src="node_modules/webrtc-adapter/out/adapter.js"></script>
+    <title>WebSocket with WebRTC Calling - PeerJS</title>
+    <meta charset="utf-8" />
 
-  <style>
-    video {
-      width: 200px;
-    }
+    <base href="/" />
 
-    .local_video{
-      border: 1px solid red;
-    }
+    <meta name="viewport"
+        content="viewport-fit=cover, width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="msapplication-tap-highlight" content="no" />
 
+    <link rel="icon" type="image/png" href="assets/icon/favicon.png" />
 
-    .received_video{
-      border: 1px solid green;
-    }
-  </style>
+    <!-- add to homescreen for ios -->
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/icon-192x192.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <meta name="theme-color" content="#1976d2" />
+
+    <script src="./peerjs.min.js"></script>
+
+    <style>
+        video {
+            width: 200px;
+        }
+    </style>
 </head>
 
 <body>
-  <div class="container">
-    <div class="infobox">
-      <p>This is a simple chat system implemented using WebSockets. It works by sending packets of JSON back and forth
-        with the server.
-        <a href="https://github.com/mdn/samples-server/tree/master/s/webrtc-from-chat">
-          Check out the source</a> on Github.</p>
-      <p class="mdn-disclaimer">This text and audio/video chat example is offered as-is for demonstration purposes only,
-        and should not be used for any other purpose.
-      </p>
-      <p>Click a username in the user list to ask them to enter a one-on-one video chat with you.</p>
-      <p>Enter a username: <input id="name" type="text" maxlength="12" required autocomplete="username"
-          inputmode="verbatim" placeholder="Username">
-        <input type="button" name="login" value="Log in" onclick="connect()"></p>
+    <div class="container">
+        <div>
+            <p>
+                Your id: <span id="myId"></span>
+            </p>
+            <p>
+                Enter a remote id:
+                <input id="targetId" type="text" placeholder="Target id">
+                <input type="button" value="Call" onclick="call()">
+            </p>
+        </div>
+
+
+        <div>
+            <video id="received_video" autoplay></video>
+            <video id="local_video" autoplay muted></video>
+        </div>
+
+        <input type="button" value="Close" onclick="close_call()">
     </div>
-    <ul class="userlistbox"></ul>
-    <div class="chatbox"></div>
-    <div class="camerabox">
-      <video id="received_video" autoplay></video>
-      <video id="local_video" autoplay muted></video>
-      <button id="hangup-button" onclick="hangUpCall();" role="button" disabled>
-        Hang Up
-      </button>
-    </div>
-    <div class="empty-container"></div>
-    <div class="chat-controls">
-      Chat:<br />
-      <input id="text" type="text" name="text" size="100" maxlength="256" placeholder="Say something meaningful..."
-        autocomplete="off" onkeyup="handleKey(event)" disabled>
-      <input type="button" id="send" name="send" value="Send" onclick="handleSendButton()" disabled>
-    </div>
-  </div>
+
+    <script>
+        /*         var peer = new Peer({
+                    host: 'localhost',
+                    port: 9000,
+                    path: '/myapp'
+                }); */
+
+        var peer = new Peer();
+
+        peer.on('open', function (id) {
+            document.getElementById("myId").innerHTML = id;
+        });
+
+        let currentCall = null;
+
+        async function call() {
+            const id = document.getElementById("targetId").value
+            console.log("Calling " + id);
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                document.getElementById("local_video").srcObject = stream;
+
+                const call = peer.call(id, stream);
+                call.on('stream', function (remoteStream) {
+                    document.getElementById("received_video").srcObject = remoteStream
+                });
+
+
+                currentCall = call;
+            } catch (ex) {
+                console.error(ex);
+            }
+        }
+
+        peer.on('call', async (call) => {
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                document.getElementById("local_video").srcObject = stream;
+
+                call.answer(stream); // Answer the call with an A/V stream.
+                call.on('stream', function (remoteStream) {
+
+                    // Show stream in some video/canvas element.
+                    document.getElementById("received_video").srcObject = remoteStream
+                });
+                currentCall = call;
+            } catch (ex) {
+                console.error(ex);
+            }
+        });
+
+        function close_call() {
+            document.getElementById("received_video").pause = true
+            document.getElementById("local_video").pause = true
+            currentCall.close();
+        }
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('/service-worker.js').then(function (registration) {
+                    // Registration was successful
+                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                }, function (err) {
+                    // registration failed :(
+                    console.log('ServiceWorker registration failed: ', err);
+                });
+            });
+        }
+    </script>
 </body>
 
 </html>
