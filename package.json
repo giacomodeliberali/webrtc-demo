@@ -1,0 +1,26 @@
+{
+  "name": "webrtc-demo",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "dependencies": {
+    "peerjs": "^1.2.0",
+    "webrtc-adapter": "^7.5.1",
+    "websocket": "^1.0.31"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/giacomodeliberali/webrtc-demo.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/giacomodeliberali/webrtc-demo/issues"
+  },
+  "homepage": "https://github.com/giacomodeliberali/webrtc-demo#readme"
+}
