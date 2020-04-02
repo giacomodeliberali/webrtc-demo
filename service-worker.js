@@ -1,7 +1,7 @@
 var CACHE_NAME = 'my-site-cache-v1';
 var urlsToCache = [
   '/',
-  '/peerjs.min.js'
+  '/webrtc-demo/peerjs.min.js'
 ];
 
 self.addEventListener('install', function(event) {
