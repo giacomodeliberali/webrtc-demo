@@ -73,10 +73,12 @@
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 document.getElementById("local_video").srcObject = stream;
+                document.getElementById("local_video").play()
 
                 const call = peer.call(id, stream);
                 call.on('stream', function (remoteStream) {
                     document.getElementById("received_video").srcObject = remoteStream
+                    document.getElementById("received_video").play()
                 });
 
 
@@ -91,12 +93,14 @@
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 document.getElementById("local_video").srcObject = stream;
+                document.getElementById("local_video").play()
 
                 call.answer(stream); // Answer the call with an A/V stream.
                 call.on('stream', function (remoteStream) {
 
                     // Show stream in some video/canvas element.
                     document.getElementById("received_video").srcObject = remoteStream
+                    document.getElementById("received_video").play()
                 });
                 currentCall = call;
             } catch (ex) {
