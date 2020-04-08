@@ -52,13 +52,16 @@
     </div>
 
     <script>
-        var peer = new Peer({
+        let randomId = Math.random().toString(36).substring(3);
+        const peer = new Peer(randomId, {
             host: 'webrtc-peerjs.azurewebsites.net',
             port: 443,
             path: '/'
         });
 
+
         peer.on('open', function (id) {
+            console.log(`My id is ${id}`)
             document.getElementById("myId").innerHTML = id;
         });
 
@@ -112,17 +115,17 @@
             currentCall.close();
         }
 
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function () {
-                navigator.serviceWorker.register('service-worker.js').then(function (registration) {
-                    // Registration was successful
-                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                }, function (err) {
-                    // registration failed :(
-                    console.log('ServiceWorker registration failed: ', err);
-                });
-            });
-        }
+                if ('serviceWorker' in navigator) {
+                    window.addEventListener('load', function () {
+                        navigator.serviceWorker.register('service-worker.js').then(function (registration) {
+                            // Registration was successful
+                            console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                        }, function (err) {
+                            // registration failed :(
+                            console.log('ServiceWorker registration failed: ', err);
+                        });
+                    });
+                }
     </script>
 </body>
 

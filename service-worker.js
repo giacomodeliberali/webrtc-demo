@@ -1,4 +1,4 @@
-var CACHE_NAME = 'my-site-cache-v1';
+var CACHE_NAME = 'v0.0.1';
 var urlsToCache = [
   '/webrtc-demo/',
   '/webrtc-demo/peerjs.min.js'
