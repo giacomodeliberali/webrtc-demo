@@ -15,21 +15,60 @@ export class CallModalComponent implements OnInit {
   @ViewChild('localVideo', { read: ElementRef, static: true }) localVideo: ElementRef<HTMLVideoElement>;
   @ViewChild('remoteVideo', { read: ElementRef, static: true }) remoteVideo: ElementRef<HTMLVideoElement>;
 
+  public hasRemoteStream = false;
+  public hasLocalStream = false;
+
+
   constructor(private modalCtrl: ModalController, private peerSvc: PeerService) { }
 
-  ngOnInit() {
+  async ngOnInit() {
+
+    this.localVideo.nativeElement.oncanplay = () => {
+      this.hasLocalStream = true;
+    };
+    this.remoteVideo.nativeElement.oncanplay = () => {
+      this.hasRemoteStream = true;
+    };
+
     this.peerSvc.localVideo$.subscribe(localStream => {
-      console.log('localStream received', localStream);
       this.localVideo.nativeElement.srcObject = localStream;
+      this.localVideo.nativeElement.muted = true;
     });
     this.peerSvc.remoteVideo$.subscribe(remoteStream => {
-      console.log('remoteStream received', remoteStream);
       this.remoteVideo.nativeElement.srcObject = remoteStream;
+      this.remoteVideo.nativeElement.muted = false;
     });
+
+    this.peerSvc.isCallClosed$.subscribe((isCallFinished) => {
+      if (isCallFinished) {
+        this.dismissModal();
+      }
+    });
+
+
+    // TODO: debug
+    /*     const localStreamDebug = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+
+        this.localVideo.nativeElement.oncanplay = () => {
+          this.hasLocalStream = true;
+        };
+        this.localVideo.nativeElement.srcObject = localStreamDebug;
+        this.localStream = localStreamDebug;
+        this.localVideo.nativeElement.muted = true;
+
+
+        this.remoteStream = localStreamDebug;
+        this.remoteVideo.nativeElement.srcObject = localStreamDebug;
+        this.remoteVideo.nativeElement.muted = true; */
   }
+
 
   public dismissModal() {
     this.modalCtrl.dismiss();
   }
 
+  public async hangUp() {
+    this.peerSvc.hangUp();
+    this.dismissModal();
+  }
 }

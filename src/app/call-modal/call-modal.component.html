@@ -1,15 +1,23 @@
 <ion-header translucent>
   <ion-toolbar>
-    <ion-title>Modal Content</ion-title>
-    <ion-buttons slot="end">
-      <ion-button (click)="dismissModal()">Close</ion-button>
-    </ion-buttons>
+    <ion-title>Mario Rossi</ion-title>
   </ion-toolbar>
 </ion-header>
 <ion-content fullscreen>
+  <div class="container">
+  <div class="remote" >
+    <video #remoteVideo autoplay muted playsinline></video>
+    <ion-spinner *ngIf="!hasRemoteStream"></ion-spinner>
+  </div>
+  <div class="local">
+    <video #localVideo autoplay muted playsinline></video>
+    <ion-spinner *ngIf="!hasLocalStream"></ion-spinner>
+  </div>
 
-  <video #remoteVideo autoplay muted playsinline></video>
-  <video #localVideo autoplay muted playsinline></video>
-
+  <ion-button class="hang-up" (click)="hangUp()">
+    <ion-icon name="call-outline"></ion-icon>
+    Termina chiamata
+  </ion-button>
+</div>
 
 </ion-content>

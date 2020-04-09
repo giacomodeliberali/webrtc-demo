@@ -12,40 +12,115 @@ export class PeerService {
   private peer: PeerJS;
 
   // sarà l'id dell'utente loggato
-  public localId = Math.random().toString(36).substring(3);
+  public localId$ = new BehaviorSubject<string>(Math.random().toString(36).substring(3));
 
   public localVideo$ = new BehaviorSubject<MediaStream>(null);
   public remoteVideo$ = new BehaviorSubject<MediaStream>(null);
+  public isCallClosed$ = new BehaviorSubject<boolean>(false);
 
-  private currentCall: PeerJS.MediaConnection;
+  private localStream: MediaStream;
+  private remoteStream: MediaStream;
+
+  private mediaConnection: PeerJS.MediaConnection;
+
+  private modalComponent: any;
+
+  public setModalComponent(cmp: any) {
+    this.modalComponent = cmp;
+    return this;
+  }
 
   constructor(private modalCtrl: ModalController, private alertCtrl: AlertController) {
 
-    this.peer = new Peer(this.localId, {
+    this.peer = new Peer(this.localId$.value, {
       host: 'webrtc-peerjs.azurewebsites.net',
       port: 443,
       path: '/'
     });
+
+    // this.peer = new Peer();
+
+    /* this.peer = new Peer(this.localId, {
+      host: '192.168.1.226',
+      port: 5001,
+      path: '/'
+    }); */
 
     this.peer.on('open', this.onPeerConnectionOpen.bind(this));
 
     this.peer.on('call', this.onCallReceived.bind(this));
   }
 
-  private onPeerConnectionOpen(id: number) {
+  private onPeerConnectionOpen(id: string) {
     console.log(`My id is ${id}`);
+    this.localId$.next(id);
   }
+
+  public async initCall(remoteId: string, video: boolean) {
+    try {
+      if (this.mediaConnection && this.mediaConnection.open) {
+        console.log('Chiamata già in corso');
+        return;
+      }
+
+      this.localStream = await navigator.mediaDevices.getUserMedia({ video, audio: true });
+      this.localVideo$.next(this.localStream);
+
+      // la mediaConnection viene ritornata solo la prima volta e successivamente solamente chiusa
+      const call = this.peer.call(remoteId, this.localStream, {
+        metadata: {
+          name: 'User ' + this.localId$.value
+        }
+      });
+      console.log('Call: ', call);
+      this.mediaConnection = this.mediaConnection || call;
+
+      this.mediaConnection.on('close', () => this.hangUp());
+
+      this.mediaConnection.on('stream', (remoteStream) => {
+        this.remoteStream = remoteStream;
+        this.remoteVideo$.next(remoteStream);
+      });
+
+      this.showModal(video);
+
+    } catch (ex) {
+      console.error(ex);
+    }
+  }
+
+  public hangUp() {
+    if (!this.mediaConnection) {
+      return;
+    }
+
+    const stopTracks = (mediaStream: MediaStream) => {
+      if (mediaStream) {
+        for (const track of mediaStream.getTracks()) {
+          track.stop();
+        }
+      }
+    };
+
+    stopTracks(this.localStream);
+    stopTracks(this.remoteStream);
+
+    if (this.mediaConnection.open) {
+      this.mediaConnection.close();
+    }
+    this.isCallClosed$.next(true);
+  }
+
 
   private async onCallReceived(call: PeerJS.MediaConnection) {
     console.log('onCallReceived');
-    if (this.currentCall) {
-      call.close();
+    if (this.mediaConnection && this.mediaConnection.open) {
       console.log('Chiamata già in corso');
       return;
     }
 
     const alert = await this.alertCtrl.create({
-      header: 'Chiamata in arrivo',
+      header: call.metadata.name,
       message: 'Rispondere alla chiamata?',
       buttons: [
         {
@@ -65,44 +140,23 @@ export class PeerService {
   }
 
   private async onAnswerCall(call: PeerJS.MediaConnection) {
-    this.currentCall = call;
-    const localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    this.currentCall.answer(localStream);
-    this.localVideo$.next(localStream);
-    this.currentCall.on('stream', (remoteStream) => {
+    this.mediaConnection = call;
+    this.mediaConnection.on('close', () => this.hangUp());
+    this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    this.mediaConnection.answer(this.localStream);
+    this.localVideo$.next(this.localStream);
+    this.mediaConnection.on('stream', (remoteStream) => {
+      this.remoteStream = remoteStream;
       this.remoteVideo$.next(remoteStream);
     });
-
-    this.currentCall.on('close', () => {
-      this.currentCall = null;
-    });
+    this.showModal(true);
   }
 
-  public async initCall(remoteId: string, video: boolean, component: any) {
-    if (this.currentCall) {
-      console.log('Chiamata già in corso');
-      return;
-    }
 
-    const localStream = await navigator.mediaDevices.getUserMedia({ video, audio: true });
-    this.localVideo$.next(localStream);
 
-    this.currentCall = this.peer.call(remoteId, localStream);
-
-    this.currentCall.on('stream', (remoteStream) => {
-      this.remoteVideo$.next(remoteStream);
-    });
-
-    this.currentCall.on('close', () => {
-      this.currentCall = null;
-    });
-
-    this.showModal(video, component);
-  }
-
-  private async showModal(video: boolean, component: any) {
+  public async showModal(video: boolean) {
     const modal = await this.modalCtrl.create({
-      component,
+      component: this.modalComponent,
       componentProps: {
         video
       }

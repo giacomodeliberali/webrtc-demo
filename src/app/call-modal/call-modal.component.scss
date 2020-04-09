@@ -1,0 +1,37 @@
+.container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    width: 100%;
+}
+
+.remote {
+    width: 100%;
+
+    & video {
+        width: 100%;
+    }
+
+    & ion-spinner {
+        top: -50%;
+        left: 50%;
+    }
+}
+
+.local {
+    width: 50%;
+
+    & video {
+        width: 100%;
+    }
+
+    & ion-spinner {
+        top: -50%;
+        left: 50%;
+    }
+}
+
+.hang-up {
+}
