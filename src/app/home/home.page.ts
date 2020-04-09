@@ -1,4 +1,7 @@
 import { Component } from '@angular/core';
+import { ModalController } from '@ionic/angular';
+import { CallModalComponent } from '../call-modal/call-modal.component';
+import { PeerService } from '../peer.service';
 
 @Component({
   selector: 'app-home',
@@ -7,6 +10,17 @@ import { Component } from '@angular/core';
 })
 export class HomePage {
 
-  constructor() {}
+  remoteId: string;
+  localId: string;
+
+  constructor(public modalController: ModalController, public peerSvc: PeerService) {
+
+
+  }
+
+
+  public async startCall(video: boolean) {
+    this.peerSvc.initCall(this.remoteId, video, CallModalComponent);
+  }
 
 }
