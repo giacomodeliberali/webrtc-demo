@@ -19,7 +19,7 @@ export class HomePage {
 
 
   public async startCall(video: boolean) {
-    this.peerSvc.initCall(this.remoteId, video);
+    this.peerSvc.callPeerById(this.remoteId, video);
   }
 
 }

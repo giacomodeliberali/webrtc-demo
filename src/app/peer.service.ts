@@ -1,8 +1,16 @@
 import { Injectable } from '@angular/core';
 import { AlertController, ModalController } from '@ionic/angular';
 import * as PeerJS from 'peerjs';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, Subject } from 'rxjs';
+
 declare const Peer: typeof PeerJS;
+
+interface Event {
+  type: string;
+}
+const EventTypes: { [key: string]: Event } = {
+  Busy: { type: 'busy' }
+};
 
 @Injectable({
   providedIn: 'root'
@@ -11,8 +19,18 @@ export class PeerService {
 
   private peer: PeerJS;
 
+  public onCallStart$ = new Subject<any>();
+
+  // -- CHIAMANTE --
+  public isWaitingForAnswer = new Subject<boolean>();
+  /* public onBusyCallee = new Subject<boolean>(); */
+  public onCallAnswer = new Subject<boolean>();
+
+  // -- CHIAMATO --
+  public onIncomingCall = new Subject<boolean>();
+
   // sarà l'id dell'utente loggato
-  public localId$ = new BehaviorSubject<string>(Math.random().toString(36).substring(3));
+  public localId: string;
 
   public localVideo$ = new BehaviorSubject<MediaStream>(null);
   public remoteVideo$ = new BehaviorSubject<MediaStream>(null);
@@ -21,7 +39,7 @@ export class PeerService {
   private localStream: MediaStream;
   private remoteStream: MediaStream;
 
-  private mediaConnection: PeerJS.MediaConnection;
+  private currentMediaConnection: PeerJS.MediaConnection;
 
   private modalComponent: any;
 
@@ -32,10 +50,21 @@ export class PeerService {
 
   constructor(private modalCtrl: ModalController, private alertCtrl: AlertController) {
 
-    this.peer = new Peer(this.localId$.value, {
+  }
+
+  public init(localPeerId: string) {
+
+    if (this.localId) {
+      throw new Error('Il peer è già stato inizializzato.');
+    }
+
+    this.localId = localPeerId;
+
+    this.peer = new Peer(this.localId, {
       host: 'webrtc-peerjs.azurewebsites.net',
       port: 443,
       path: '/'
+      //, debug: 3
     });
 
     // this.peer = new Peer();
@@ -49,40 +78,79 @@ export class PeerService {
     this.peer.on('open', this.onPeerConnectionOpen.bind(this));
 
     this.peer.on('call', this.onCallReceived.bind(this));
+
+    this.peer.on('close', this.onClose.bind(this));
+    this.peer.on('connection', this.onConnection.bind(this));
+    this.peer.on('disconnected', this.onDisconnected.bind(this));
+    this.peer.on('error', this.onError.bind(this));
+  }
+
+  private onClose(...args) {
+    console.log("onClose", ...args);
+  }
+
+  private onConnection(connection: PeerJS.DataConnection) {
+    console.log("onConnection", connection);
+
+    connection.on('data', (data: Event) => {
+      console.log("Data received", data);
+      switch (data.type) {
+        case EventTypes.Busy.type:
+          connection.close();
+          this.onBusyCallee();
+          break;
+        default:
+          console.log("data", data);
+      }
+    });
+
+
+  }
+
+  private onDisconnected(peerId: string) {
+    console.log("onDisconnected", peerId);
+  }
+
+  private onError(err) {
+    console.log("onError", err);
   }
 
   private onPeerConnectionOpen(id: string) {
     console.log(`My id is ${id}`);
-    this.localId$.next(id);
+    document.title = id;
+  }
+  private async onBusyCallee() {
+    this.hangUp();
+    const alert = await this.alertCtrl.create({ header: "Utente occupato", buttons: [{ text: "Ok", role: 'cancel' }] });
+    alert.present();
   }
 
-  public async initCall(remoteId: string, video: boolean) {
+  public async callPeerById(remoteId: string, withVideo: boolean) {
     try {
-      if (this.mediaConnection && this.mediaConnection.open) {
+      if (this.currentMediaConnection && this.currentMediaConnection.open) {
         console.log('Chiamata già in corso');
         return;
       }
 
-      this.localStream = await navigator.mediaDevices.getUserMedia({ video, audio: true });
+      this.localStream = await navigator.mediaDevices.getUserMedia({ video: withVideo, audio: true });
       this.localVideo$.next(this.localStream);
 
-      // la mediaConnection viene ritornata solo la prima volta e successivamente solamente chiusa
-      const call = this.peer.call(remoteId, this.localStream, {
+      this.currentMediaConnection = this.peer.call(remoteId, this.localStream, {
         metadata: {
-          name: 'User ' + this.localId$.value
+          name: 'User ' + this.localId,
+          withVideo
         }
       });
-      console.log('Call: ', call);
-      this.mediaConnection = this.mediaConnection || call;
 
-      this.mediaConnection.on('close', () => this.hangUp());
+      this.currentMediaConnection.on('close', () => this.hangUp());
 
-      this.mediaConnection.on('stream', (remoteStream) => {
+
+      this.currentMediaConnection.on('stream', (remoteStream) => {
         this.remoteStream = remoteStream;
         this.remoteVideo$.next(remoteStream);
       });
 
-      this.showModal(video);
+      this.showModal(withVideo);
 
     } catch (ex) {
       console.error(ex);
@@ -90,9 +158,9 @@ export class PeerService {
   }
 
   public hangUp() {
-    if (!this.mediaConnection) {
-      return;
-    }
+    /*     if (!this.currentMediaConnection || !this.currentMediaConnection.open) {
+          return;
+        } */
 
     const stopTracks = (mediaStream: MediaStream) => {
       if (mediaStream) {
@@ -105,23 +173,31 @@ export class PeerService {
     stopTracks(this.localStream);
     stopTracks(this.remoteStream);
 
-    if (this.mediaConnection.open) {
-      this.mediaConnection.close();
+    if (this.currentMediaConnection && this.currentMediaConnection.open) {
+      this.currentMediaConnection.close();
     }
+
+    console.log("Active connections", this.peer.connections);
+
     this.isCallClosed$.next(true);
   }
 
 
-  private async onCallReceived(call: PeerJS.MediaConnection) {
-    console.log('onCallReceived');
-    if (this.mediaConnection && this.mediaConnection.open) {
-      console.log('Chiamata già in corso');
+  private async onCallReceived(incomingCall: PeerJS.MediaConnection) {
+    console.log('Incoming call from peer ' + incomingCall.peer, incomingCall.metadata);
+    if (this.currentMediaConnection && this.currentMediaConnection.open) {
+      console.log('Chiamata già in corso.');
+      const dataChannel = this.peer.connect(incomingCall.peer);
+      dataChannel.on('open', () => {
+        dataChannel.send(EventTypes.Busy);
+      });
       return;
     }
 
+    const { withVideo } = incomingCall.metadata;
     const alert = await this.alertCtrl.create({
-      header: call.metadata.name,
-      message: 'Rispondere alla chiamata?',
+      header: incomingCall.metadata.name,
+      message: 'Rispondere alla ' + (withVideo ? 'videochiamata' : 'chiamata') + '?',
       buttons: [
         {
           text: 'Annulla',
@@ -130,7 +206,7 @@ export class PeerService {
         {
           text: 'Rispondi',
           handler: () => {
-            this.onAnswerCall(call);
+            this.onAnswerCall(incomingCall, withVideo);
           }
         }
       ]
@@ -139,17 +215,17 @@ export class PeerService {
     return alert.present();
   }
 
-  private async onAnswerCall(call: PeerJS.MediaConnection) {
-    this.mediaConnection = call;
-    this.mediaConnection.on('close', () => this.hangUp());
-    this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    this.mediaConnection.answer(this.localStream);
+  private async onAnswerCall(call: PeerJS.MediaConnection, withVideo: boolean) {
+    this.currentMediaConnection = call;
+    this.currentMediaConnection.on('close', () => this.hangUp());
+    this.localStream = await navigator.mediaDevices.getUserMedia({ video: withVideo, audio: true });
+    this.currentMediaConnection.answer(this.localStream);
     this.localVideo$.next(this.localStream);
-    this.mediaConnection.on('stream', (remoteStream) => {
+    this.currentMediaConnection.on('stream', (remoteStream) => {
       this.remoteStream = remoteStream;
       this.remoteVideo$.next(remoteStream);
     });
-    this.showModal(true);
+    this.showModal(withVideo);
   }
 
 

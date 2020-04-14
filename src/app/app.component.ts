@@ -9,6 +9,15 @@ import { PeerService } from './peer.service';
 })
 export class AppComponent {
   constructor(private peerSvc: PeerService) {
+
+    const between = (min: number, max: number) => {
+      return Math.floor(
+        Math.random() * (max - min) + min
+      ).toString();
+    }
+
+    //TODO: use real id
+    this.peerSvc.init(between(1, 100));
     this.peerSvc.setModalComponent(CallModalComponent);
   }
 
