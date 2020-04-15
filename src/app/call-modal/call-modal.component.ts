@@ -39,12 +39,11 @@ export class CallModalComponent implements OnInit {
       this.remoteVideo.nativeElement.muted = false;
     });
 
-    this.peerSvc.isCallClosed$.subscribe((isCallFinished) => {
+    this.peerSvc.onCallClosed$.subscribe((isCallFinished) => {
       if (isCallFinished) {
         this.dismissModal();
       }
     });
-
 
     // TODO: debug
     /*     const localStreamDebug = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });

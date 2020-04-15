@@ -1,8 +1,9 @@
 import { Injectable } from '@angular/core';
 import { AlertController, ModalController } from '@ionic/angular';
-import * as PeerJS from 'peerjs';
-import { BehaviorSubject, Subject } from 'rxjs';
+import { BehaviorSubject, Subject, Subscriber } from 'rxjs';
 
+// included in angular.json
+import * as PeerJS from 'peerjs'; // import only to use dts
 declare const Peer: typeof PeerJS;
 
 interface Event {
@@ -21,6 +22,8 @@ export class PeerService {
 
   public onCallStart$ = new Subject<any>();
 
+  public onBusyCallee$ = new Subject();
+
   // -- CHIAMANTE --
   public isWaitingForAnswer = new Subject<boolean>();
   /* public onBusyCallee = new Subject<boolean>(); */
@@ -34,7 +37,7 @@ export class PeerService {
 
   public localVideo$ = new BehaviorSubject<MediaStream>(null);
   public remoteVideo$ = new BehaviorSubject<MediaStream>(null);
-  public isCallClosed$ = new BehaviorSubject<boolean>(false);
+  public onCallClosed$ = new BehaviorSubject<boolean>(false);
 
   private localStream: MediaStream;
   private remoteStream: MediaStream;
@@ -64,7 +67,7 @@ export class PeerService {
       host: 'webrtc-peerjs.azurewebsites.net',
       port: 443,
       path: '/'
-      //, debug: 3
+      // , debug: 3
     });
 
     // this.peer = new Peer();
@@ -86,42 +89,44 @@ export class PeerService {
   }
 
   private onClose(...args) {
-    console.log("onClose", ...args);
+    console.log('onClose', ...args);
   }
 
   private onConnection(connection: PeerJS.DataConnection) {
-    console.log("onConnection", connection);
-
+    console.log('onConnection', connection);
     connection.on('data', (data: Event) => {
-      console.log("Data received", data);
       switch (data.type) {
         case EventTypes.Busy.type:
-          connection.close();
-          this.onBusyCallee();
+          this.onBusyCallee(connection);
           break;
         default:
-          console.log("data", data);
+          console.log('Data received', data);
       }
     });
-
-
   }
 
   private onDisconnected(peerId: string) {
-    console.log("onDisconnected", peerId);
+    console.log('onDisconnected', peerId);
   }
 
   private onError(err) {
-    console.log("onError", err);
+    console.log('onError', err);
   }
 
   private onPeerConnectionOpen(id: string) {
     console.log(`My id is ${id}`);
     document.title = id;
   }
-  private async onBusyCallee() {
+  private async onBusyCallee(dataConnection: PeerJS.DataConnection) {
+    // chiuso la connessione dati che mi ha mandato il messaggio busy
+    dataConnection.close();
+    this.onCallClosed$.next(true);
+
+    // chiudo la chiamata che stavo provando a fare
     this.hangUp();
-    const alert = await this.alertCtrl.create({ header: "Utente occupato", buttons: [{ text: "Ok", role: 'cancel' }] });
+
+    // visualizzo messaggio utente busy
+    const alert = await this.alertCtrl.create({ header: 'Utente occupato', buttons: [{ text: 'Ok', role: 'cancel' }] });
     alert.present();
   }
 
@@ -158,9 +163,10 @@ export class PeerService {
   }
 
   public hangUp() {
-    /*     if (!this.currentMediaConnection || !this.currentMediaConnection.open) {
-          return;
-        } */
+
+    if (!this.currentMediaConnection) {
+      return;
+    }
 
     const stopTracks = (mediaStream: MediaStream) => {
       if (mediaStream) {
@@ -173,13 +179,13 @@ export class PeerService {
     stopTracks(this.localStream);
     stopTracks(this.remoteStream);
 
-    if (this.currentMediaConnection && this.currentMediaConnection.open) {
+    if (this.currentMediaConnection) {
       this.currentMediaConnection.close();
     }
 
-    console.log("Active connections", this.peer.connections);
+    console.log('Active connections', this.peer.connections);
 
-    this.isCallClosed$.next(true);
+    this.onCallClosed$.next(true);
   }
 
 
@@ -190,6 +196,7 @@ export class PeerService {
       const dataChannel = this.peer.connect(incomingCall.peer);
       dataChannel.on('open', () => {
         dataChannel.send(EventTypes.Busy);
+        incomingCall.close();
       });
       return;
     }
