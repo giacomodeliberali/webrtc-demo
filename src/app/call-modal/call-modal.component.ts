@@ -19,7 +19,7 @@ export class CallModalComponent implements OnInit {
   public hasLocalStream = false;
 
 
-  constructor(private modalCtrl: ModalController, private peerSvc: PeerService) { }
+  constructor(public peerSvc: PeerService) { }
 
   async ngOnInit() {
 
@@ -33,17 +33,14 @@ export class CallModalComponent implements OnInit {
     this.peerSvc.localVideo$.subscribe(localStream => {
       this.localVideo.nativeElement.srcObject = localStream;
       this.localVideo.nativeElement.muted = true;
+      this.localVideo.nativeElement.play();
     });
     this.peerSvc.remoteVideo$.subscribe(remoteStream => {
       this.remoteVideo.nativeElement.srcObject = remoteStream;
       this.remoteVideo.nativeElement.muted = false;
+      this.localVideo.nativeElement.play();
     });
 
-    this.peerSvc.onCallClosed$.subscribe((isCallFinished) => {
-      if (isCallFinished) {
-        this.dismissModal();
-      }
-    });
 
     // TODO: debug
     /*     const localStreamDebug = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -63,11 +60,10 @@ export class CallModalComponent implements OnInit {
 
 
   public dismissModal() {
-    this.modalCtrl.dismiss();
+    this.peerSvc.toggleModal(false, this.video);
   }
 
   public async hangUp() {
     this.peerSvc.hangUp();
-    this.dismissModal();
   }
 }

@@ -7,11 +7,12 @@ import { environment } from '../environments/environment';
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { CallModalComponent } from './call-modal/call-modal.component';
+import { CallFloatingVideoComponent } from './call-floating-video/call-floating-video.component';
 
 
 
 @NgModule({
-  declarations: [AppComponent, CallModalComponent],
+  declarations: [AppComponent, CallModalComponent, CallFloatingVideoComponent],
   entryComponents: [CallModalComponent],
   imports: [BrowserModule, IonicModule.forRoot(), AppRoutingModule, ServiceWorkerModule.register('ngsw-worker.js', { enabled: environment.production })],
   providers: [

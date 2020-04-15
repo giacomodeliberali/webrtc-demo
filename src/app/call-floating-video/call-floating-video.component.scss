@@ -1,0 +1,12 @@
+:host {
+    z-index: 100000;
+}
+
+video {
+    width: 200px;
+    position: absolute;
+}
+
+.hidden {
+    display: none !important;
+  }

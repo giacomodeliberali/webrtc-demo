@@ -6,6 +6,11 @@ import { BehaviorSubject, Subject, Subscriber } from 'rxjs';
 import * as PeerJS from 'peerjs'; // import only to use dts
 declare const Peer: typeof PeerJS;
 
+interface MediaStreamDescriptor {
+  stream: MediaStream;
+  hasVideo: boolean;
+}
+
 interface Event {
   type: string;
 }
@@ -37,7 +42,7 @@ export class PeerService {
 
   public localVideo$ = new BehaviorSubject<MediaStream>(null);
   public remoteVideo$ = new BehaviorSubject<MediaStream>(null);
-  public onCallClosed$ = new BehaviorSubject<boolean>(false);
+  public floatingVideo$ = new BehaviorSubject<MediaStreamDescriptor>(null);
 
   private localStream: MediaStream;
   private remoteStream: MediaStream;
@@ -52,7 +57,6 @@ export class PeerService {
   }
 
   constructor(private modalCtrl: ModalController, private alertCtrl: AlertController) {
-
   }
 
   public init(localPeerId: string) {
@@ -107,6 +111,7 @@ export class PeerService {
 
   private onDisconnected(peerId: string) {
     console.log('onDisconnected', peerId);
+    this.peer.reconnect();
   }
 
   private onError(err) {
@@ -120,7 +125,6 @@ export class PeerService {
   private async onBusyCallee(dataConnection: PeerJS.DataConnection) {
     // chiuso la connessione dati che mi ha mandato il messaggio busy
     dataConnection.close();
-    this.onCallClosed$.next(true);
 
     // chiudo la chiamata che stavo provando a fare
     this.hangUp();
@@ -185,7 +189,7 @@ export class PeerService {
 
     console.log('Active connections', this.peer.connections);
 
-    this.onCallClosed$.next(true);
+    this.modalCtrl.dismiss();
   }
 
 
@@ -240,11 +244,27 @@ export class PeerService {
   public async showModal(video: boolean) {
     const modal = await this.modalCtrl.create({
       component: this.modalComponent,
+      swipeToClose: true,
       componentProps: {
         video
       }
     });
     return modal.present();
+  }
+
+
+  public showFloatingVideo(video: boolean) {
+    this.floatingVideo$.next({ stream: this.remoteStream, hasVideo: video });
+  }
+
+  public toggleModal(showModal: boolean, video: boolean) {
+    if (showModal) {
+      this.floatingVideo$.next(null);
+      this.showModal(video);
+    } else {
+      this.modalCtrl.dismiss();
+      this.showFloatingVideo(video);
+    }
   }
 
 }

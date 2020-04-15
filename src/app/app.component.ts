@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { CallModalComponent } from './call-modal/call-modal.component';
 import { PeerService } from './peer.service';
+import { CheckForUpdateService } from './check-for-update.service';
 
 @Component({
   selector: 'app-root',
@@ -8,7 +9,9 @@ import { PeerService } from './peer.service';
   styleUrls: ['app.component.scss']
 })
 export class AppComponent {
-  constructor(private peerSvc: PeerService) {
+  constructor(private peerSvc: PeerService, private checkForUpdateSvc: CheckForUpdateService) {
+
+    this.checkForUpdateSvc.checkForUpdates();
 
     const between = (min: number, max: number) => {
       return Math.floor(
@@ -17,7 +20,7 @@ export class AppComponent {
     }
 
     //TODO: use real id
-    this.peerSvc.init(between(1, 100));
+    this.peerSvc.init(between(1, 1000));
     this.peerSvc.setModalComponent(CallModalComponent);
   }
 
