@@ -254,8 +254,8 @@ export class PeerService {
       this.currentMediaConnection.answer(this.localStream);
       this.localVideo$.next(this.localStream);
     }, (error) => {
-      console.log(error);
       this.handleError(error);
+      this.hangUp();
     });
 
     this.currentMediaConnection.on('stream', (remoteStream) => {
