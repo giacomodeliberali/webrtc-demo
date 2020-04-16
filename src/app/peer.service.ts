@@ -177,7 +177,6 @@ export class PeerService {
         this.showModal(withVideo);
       }, (error) => {
         this.handleError(error);
-        this.hangUp();
       });
 
 
@@ -208,7 +207,7 @@ export class PeerService {
     }
 
     console.log('Active connections', this.peer.connections);
-
+    this.floatingVideo$.next(null);
     this.modalCtrl.dismiss();
   }
 
@@ -255,7 +254,6 @@ export class PeerService {
       this.localVideo$.next(this.localStream);
     }, (error) => {
       this.handleError(error);
-      this.hangUp();
     });
 
     this.currentMediaConnection.on('stream', (remoteStream) => {
@@ -306,7 +304,7 @@ export class PeerService {
           }
         ]
       });
-
+      this.hangUp();
       return alert.present();
     }
   }
