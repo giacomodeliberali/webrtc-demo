@@ -155,25 +155,31 @@ export class PeerService {
         return;
       }
 
-      this.localStream = await navigator.mediaDevices.getUserMedia({ video: withVideo, audio: true });
-      this.localVideo$.next(this.localStream);
+      await navigator.getUserMedia({ video: withVideo, audio: true }, (stream) => {
+        this.localStream = stream;
+        this.localVideo$.next(this.localStream);
 
-      this.currentMediaConnection = this.peer.call(remoteId, this.localStream, {
-        metadata: {
-          name: 'User ' + this.localId,
-          withVideo
-        }
+        this.currentMediaConnection = this.peer.call(remoteId, this.localStream, {
+          metadata: {
+            name: 'User ' + this.localId,
+            withVideo
+          }
+        });
+
+        this.currentMediaConnection.on('close', () => this.hangUp());
+
+
+        this.currentMediaConnection.on('stream', (remoteStream) => {
+          this.remoteStream = remoteStream;
+          this.remoteVideo$.next(remoteStream);
+        });
+
+        this.showModal(withVideo);
+      }, (error) => {
+        this.handleError(error);
+        this.hangUp();
       });
 
-      this.currentMediaConnection.on('close', () => this.hangUp());
-
-
-      this.currentMediaConnection.on('stream', (remoteStream) => {
-        this.remoteStream = remoteStream;
-        this.remoteVideo$.next(remoteStream);
-      });
-
-      this.showModal(withVideo);
 
     } catch (ex) {
       console.error(ex);
@@ -243,9 +249,15 @@ export class PeerService {
   private async onAnswerCall(call: PeerJS.MediaConnection, withVideo: boolean) {
     this.currentMediaConnection = call;
     this.currentMediaConnection.on('close', () => this.hangUp());
-    this.localStream = await navigator.mediaDevices.getUserMedia({ video: withVideo, audio: true });
-    this.currentMediaConnection.answer(this.localStream);
-    this.localVideo$.next(this.localStream);
+    await navigator.getUserMedia({ video: withVideo, audio: true }, (stream) => {
+      this.localStream = stream;
+      this.currentMediaConnection.answer(this.localStream);
+      this.localVideo$.next(this.localStream);
+    }, (error) => {
+      console.log(error);
+      this.handleError(error);
+    });
+
     this.currentMediaConnection.on('stream', (remoteStream) => {
       this.remoteStream = remoteStream;
       this.remoteVideo$.next(remoteStream);
@@ -280,5 +292,24 @@ export class PeerService {
       this.showFloatingVideo(video);
     }
   }
+
+  private async handleError(error: MediaStreamError) {
+    if (error.name === 'NotAllowedError') {
+      const alert = await this.alertCtrl.create({
+        header: 'Permessi non attivati',
+        message: `I permessi per l'accesso al microfono e/o telecamera sono disattivati nel tuo browser.
+        Accedi alle impostazioni di quest'ultimo ed attiva i permessi.`,
+        buttons: [
+          {
+            text: 'Ok',
+            role: 'ok'
+          }
+        ]
+      });
+
+      return alert.present();
+    }
+  }
+
 
 }
