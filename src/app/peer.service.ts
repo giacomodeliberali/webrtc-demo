@@ -49,6 +49,13 @@ export class PeerService {
 
   private currentMediaConnection: PeerJS.MediaConnection;
 
+  /** The max number of reconnection retries after a disconnection */
+  private maxReconnectRetries = 10;
+  /** The current number of reconnection retries after a disconnection */
+  private currentReconnectRetries = 0;
+  /** The number of milliseconds a reconnect is called after a disconnection */
+  private reconnectionTimeout = 1000;
+
   private modalComponent: any;
 
   public setModalComponent(cmp: any) {
@@ -111,7 +118,14 @@ export class PeerService {
 
   private onDisconnected(peerId: string) {
     console.log('onDisconnected', peerId);
-    this.peer.reconnect();
+    if (this.currentReconnectRetries < this.maxReconnectRetries) {
+      setTimeout(() => {
+        this.peer.reconnect();
+        this.currentReconnectRetries++;
+      }, this.reconnectionTimeout);
+    } else {
+      this.hangUp();
+    }
   }
 
   private onError(err) {
