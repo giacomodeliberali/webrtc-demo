@@ -17,7 +17,6 @@ export class CallFloatingVideoComponent implements OnInit {
 
   ngOnInit() {
     this.peerSvc.floatingVideo$.subscribe(remoteStreamDescriptor => {
-      console.log("EHY FUNZIONA!", remoteStreamDescriptor)
       if (remoteStreamDescriptor) {
         this.showVideo = true;
         if (remoteStreamDescriptor.stream) {

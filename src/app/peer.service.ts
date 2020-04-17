@@ -25,7 +25,6 @@ export class PeerService {
 
   private peer: PeerJS;
 
-  public callStarted$ = new BehaviorSubject<boolean>(false);
 
   public onBusyCallee$ = new Subject();
 
@@ -172,12 +171,12 @@ export class PeerService {
         this.currentMediaConnection.on('stream', (remoteStream) => {
           this.remoteStream = remoteStream;
           this.remoteVideo$.next(remoteStream);
-          this.floatingVideo$.next({
-            hasVideo: withVideo,
-            stream: this.remoteStream
-          })
+          if (!!this.floatingVideo$.value)
+            this.floatingVideo$.next({
+              hasVideo: withVideo,
+              stream: this.remoteStream
+            })
         });
-        this.callStarted$.next(true);
         this.showModal(withVideo);
       }, (error) => {
         this.handleError(error);
@@ -211,7 +210,6 @@ export class PeerService {
     }
 
     console.log('Active connections', this.peer.connections);
-    this.callStarted$.next(false);
     this.floatingVideo$.next(null);
     this.modalCtrl.dismiss();
   }
@@ -233,10 +231,13 @@ export class PeerService {
     const alert = await this.alertCtrl.create({
       header: incomingCall.metadata.name,
       message: 'Rispondere alla ' + (withVideo ? 'videochiamata' : 'chiamata') + '?',
+      backdropDismiss: false,
       buttons: [
         {
           text: 'Annulla',
-          role: 'cancel'
+          handler: () => {
+            incomingCall.close();
+          }
         },
         {
           text: 'Rispondi',
@@ -251,7 +252,6 @@ export class PeerService {
   }
 
   private async onAnswerCall(call: PeerJS.MediaConnection, withVideo: boolean) {
-    this.callStarted$.next(true);
     this.currentMediaConnection = call;
     this.currentMediaConnection.on('close', () => this.hangUp());
     await navigator.getUserMedia({ video: withVideo, audio: true }, (stream) => {
@@ -275,14 +275,10 @@ export class PeerService {
     const modal = await this.modalCtrl.create({
       component: this.modalComponent,
       swipeToClose: true,
+      backdropDismiss: false,
       componentProps: {
         video
       }
-    });
-
-    modal.onDidDismiss().then(() => {
-      if (this.callStarted$.value)
-        this.floatingVideo$.next({ stream: this.remoteStream, hasVideo: video });
     });
 
     return modal.present();
