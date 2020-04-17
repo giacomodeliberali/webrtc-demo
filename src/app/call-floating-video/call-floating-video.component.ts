@@ -17,11 +17,14 @@ export class CallFloatingVideoComponent implements OnInit {
 
   ngOnInit() {
     this.peerSvc.floatingVideo$.subscribe(remoteStreamDescriptor => {
+      console.log("EHY FUNZIONA!", remoteStreamDescriptor)
       if (remoteStreamDescriptor) {
         this.showVideo = true;
-        this.remoteVideo.nativeElement.srcObject = remoteStreamDescriptor.stream;
-        this.remoteVideo.nativeElement.muted = false;
-        this.remoteVideo.nativeElement.play();
+        if (remoteStreamDescriptor.stream) {
+          this.remoteVideo.nativeElement.srcObject = remoteStreamDescriptor.stream;
+          this.remoteVideo.nativeElement.muted = false;
+          this.remoteVideo.nativeElement.play();
+        }
       } else {
         this.remoteVideo.nativeElement.srcObject = null;
         this.showVideo = false;

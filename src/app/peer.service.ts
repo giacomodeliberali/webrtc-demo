@@ -25,7 +25,7 @@ export class PeerService {
 
   private peer: PeerJS;
 
-  public onCallStart$ = new Subject<any>();
+  public callStarted$ = new BehaviorSubject<boolean>(false);
 
   public onBusyCallee$ = new Subject();
 
@@ -172,8 +172,12 @@ export class PeerService {
         this.currentMediaConnection.on('stream', (remoteStream) => {
           this.remoteStream = remoteStream;
           this.remoteVideo$.next(remoteStream);
+          this.floatingVideo$.next({
+            hasVideo: withVideo,
+            stream: this.remoteStream
+          })
         });
-
+        this.callStarted$.next(true);
         this.showModal(withVideo);
       }, (error) => {
         this.handleError(error);
@@ -207,6 +211,7 @@ export class PeerService {
     }
 
     console.log('Active connections', this.peer.connections);
+    this.callStarted$.next(false);
     this.floatingVideo$.next(null);
     this.modalCtrl.dismiss();
   }
@@ -246,6 +251,7 @@ export class PeerService {
   }
 
   private async onAnswerCall(call: PeerJS.MediaConnection, withVideo: boolean) {
+    this.callStarted$.next(true);
     this.currentMediaConnection = call;
     this.currentMediaConnection.on('close', () => this.hangUp());
     await navigator.getUserMedia({ video: withVideo, audio: true }, (stream) => {
@@ -273,6 +279,12 @@ export class PeerService {
         video
       }
     });
+
+    modal.onDidDismiss().then(() => {
+      if (this.callStarted$.value)
+        this.floatingVideo$.next({ stream: this.remoteStream, hasVideo: video });
+    });
+
     return modal.present();
   }
 
