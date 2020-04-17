@@ -10,6 +10,8 @@
     "test": "ng test",
     "lint": "ng lint",
     "e2e": "ng e2e",
+    "delete-branch": "git push origin --delete gh-pages",
+    "deploy:clean": "npm run delete-branch && npm run deploy",
     "deploy": "ng deploy --base-href=/webrtc-demo/"
   },
   "private": true,
