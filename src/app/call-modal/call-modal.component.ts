@@ -64,6 +64,6 @@ export class CallModalComponent implements OnInit {
   }
 
   public async hangUp() {
-    this.peerSvc.hangUp();
+    this.peerSvc.closeCurrentCall();
   }
 }
