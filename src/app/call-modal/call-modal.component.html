@@ -1,24 +1,22 @@
-<ion-header translucent>
-  <ion-toolbar>
-    <ion-title>Mario Rossi</ion-title>
-    <ion-button (click)="dismissModal()"><ion-icon name="close-outline"></ion-icon></ion-button>
-  </ion-toolbar>
-</ion-header>
-<ion-content fullscreen>
-  <div class="container">
-  <div class="remote" >
-    <video #remoteVideo autoplay muted playsinline></video>
+<div class="container">
+  <div class="remote">
+    <video #remoteVideo autoplay muted playsinline class="remote-video"></video>
     <ion-spinner *ngIf="!hasRemoteStream"></ion-spinner>
   </div>
   <div class="local">
-    <video #localVideo autoplay muted playsinline></video>
+    <video #localVideo autoplay muted playsinline class="local-video"></video>
     <ion-spinner *ngIf="!hasLocalStream"></ion-spinner>
   </div>
-
-  <ion-button class="hang-up" (click)="hangUp()">
-    <ion-icon name="call-outline"></ion-icon>
-    Termina chiamata
-  </ion-button>
+  <div class="buttons-container">
+    <div class="top-buttons">
+      <ion-icon size="large" class="reduce-modal" src="/assets/chevron-down-outline-shadow.svg"
+        (click)="dismissModal()">
+      </ion-icon>
+    </div>
+    <div class="bottom-buttons">
+      <ion-fab-button color="danger" class="hang-up" (click)="hangUp()">
+        <ion-icon src="assets/hang-up.svg"></ion-icon>
+      </ion-fab-button>
+    </div>
+  </div>
 </div>
-
-</ion-content>

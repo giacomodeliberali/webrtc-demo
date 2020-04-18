@@ -1,37 +1,84 @@
+@media (orientation: landscape){
+    .remote{
+        video{
+            height: 100%;
+        }
+    }
+}
+
+@media (orientation: portrait){
+    .remote{
+        video{
+            width: 100%;
+        }
+    }
+}
+
 .container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
     height: 100%;
     width: 100%;
+    &> *{
+        position: absolute;
+    }
 }
 
 .remote {
+    height: 100%;
     width: 100%;
-
-    & video {
-        width: 100%;
-    }
-
-    & ion-spinner {
+    display: flex;
+    justify-content: center;
+    background-color: var(--ion-color-background);
+    ion-spinner {
         top: -50%;
         left: 50%;
     }
 }
+
 
 .local {
-    width: 50%;
-
-    & video {
+    top: 8px;
+    left: 8px;
+    video {
+        border: 2px solid var(--ion-color-primary);
+        border-radius: 4px;
         width: 100%;
+        max-width: 200px;
+        max-height: 200px;
     }
 
-    & ion-spinner {
+    ion-spinner {
         top: -50%;
         left: 50%;
     }
 }
 
-.hang-up {
+.buttons-container{
+    height: 100%;
+    width: 100%;
+    display: flex;
+    padding: 8px 8px 32px 8px;
+    flex-direction: column;
+    .top-buttons{
+        flex: 1;
+        display: flex;
+        .reduce-modal{
+            margin: 0 0 0 auto;
+            color:white;
+            --height: auto;
+            --padding: 0;
+        }
+    }
+    .bottom-buttons{
+        flex: 1;
+        display: flex;
+        .hang-up{
+            align-self: flex-end;
+            margin-left: auto;
+            margin-right: auto;
+            ion-icon{
+                color: white;
+            }
+        }
+    }
 }
+

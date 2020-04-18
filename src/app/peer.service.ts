@@ -395,6 +395,7 @@ export class PeerService {
       component: this.modalComponent,
       swipeToClose: true,
       backdropDismiss: false,
+      cssClass: 'call-modal',
       componentProps: {
         video
       }

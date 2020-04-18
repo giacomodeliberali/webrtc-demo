@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+<title>ionicons-v5-a</title>
+<defs>
+<filter id="shadow2">
+    <feDropShadow dx="0" dy="0" stdDeviation="0.5" 
+        flood-color="red"/>
+</filter>
+<filter id="shadow3" filterUnits="userSpaceOnUse" width="512" height="512">
+    <feDropShadow dx="0" dy="0" stdDeviation="12" 
+          flood-color="black"/>
+</filter>
+</defs>
+<polyline points="112 184 256 328 400 184" style="fill:none;stroke:#FFF;stroke-linecap:round;stroke-linejoin:round;stroke-width:48px;filter:url(#shadow3);"/>
+</svg>
