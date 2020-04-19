@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { AlertController, ModalController } from '@ionic/angular';
 import { BehaviorSubject, Subject, Subscriber, from, bindCallback, Observable, fromEvent } from 'rxjs';
 
-import { map } from 'rxjs/operators';
+import { map, switchMap } from 'rxjs/operators';
 import { MediaStreamDescriptor, DataChannelEventTypes, DataChannelEvent } from './models';
 
 /** Issue with directly importing PeerJS */
@@ -90,9 +90,9 @@ export class PeerService {
       // , debug: 3
     });
 
-    // this.peer = new Peer();
+    //this.peer = new Peer();
 
-    /* this.peer = new Peer(this.localId, {
+/*     this.peer = new Peer(this.localId, {
       host: '192.168.1.226',
       port: 5001,
       path: '/'
@@ -160,17 +160,6 @@ export class PeerService {
   }
 
   /**
-   * Open a DataConnection towards the specified peer and stores it into the dataConnections.
-   * @param remoteId The remote peer identifier
-   */
-  private openDataConnectionTowards(remoteId: string) {
-    const dataConnection = this.dataConnections[remoteId] = this.peer.connect(remoteId);
-    const open$ = PeerUtils.observableFromDataConnection<void>(dataConnection, 'open');
-    return open$.pipe(map(() => dataConnection));
-  }
-
-
-  /**
    * Presents the modal component and starts the call to the remote peer.
    * @param remoteId The remote peer to call
    * @param withVideo Indicates if the call should be audio-only or not
@@ -179,8 +168,8 @@ export class PeerService {
     // utente libero
     this.isInCall = true;
 
-    navigator.getUserMedia({ video: withVideo, audio: true }, (stream) => {
-      this.localStream = stream;
+    try {
+      this.localStream = await navigator.mediaDevices.getUserMedia({ video: withVideo, audio: true });
       this.localVideo$.next(this.localStream);
 
       this.currentMediaConnection = this.peer.call(remoteId, this.localStream, {
@@ -201,9 +190,9 @@ export class PeerService {
         }
       });
       this.showModal(withVideo);
-    }, (error) => {
-      this.handleError(error);
-    });
+    } catch (ex) {
+      this.handleError(ex);
+    }
   }
 
   /**
@@ -219,41 +208,47 @@ export class PeerService {
       return;
     }
 
-    this.openDataConnectionTowards(remoteId)
-      .subscribe(dataConnection => {
+    const dataConnection = this.dataConnections[remoteId] = this.peer.connect(remoteId, { serialization: 'json' });
+    dataConnection.on('open', () => {
 
-        console.log(`Sending BusyRequest...`);
-        dataConnection.send({ type: DataChannelEventTypes.BusyRequest });
+      console.log('Opened data connection to peer ' + dataConnection.peer);
 
-        PeerUtils.observableFromDataConnection<DataChannelEvent>(dataConnection, 'data')
-          .subscribe(async msg => {
-            console.log(`Received ${DataChannelEventTypes[msg.type]}`);
-            switch (msg.type) {
-              case DataChannelEventTypes.BusyResponse:
-                const { isBusy } = msg.payload;
-                if (isBusy) {
-                  PeerUtils.showBusyCalleeAlert(this.alertCtrl);
-                  this.hangUp();
-                } else {
-                  console.log(`Opening MediaConnection to ${remoteId}`);
-                  this.presentCallUI(remoteId, withVideo);
-                }
-                break;
-              case DataChannelEventTypes.CallClosed:
-                // chiamata chiusa dal remote peer
-                dataConnection.close();
-                this.hangUp();
-                break;
+      const busyRequest = PeerUtils.createMessage(DataChannelEventTypes.BusyRequest);
+      console.log(`Sending BusyRequest...`, busyRequest, dataConnection);
+      dataConnection.send(busyRequest);
+
+      dataConnection.on('data', async (msg: DataChannelEvent) => {
+        console.log(`Received ${DataChannelEventTypes[msg.type]}`);
+        switch (msg.type) {
+          case DataChannelEventTypes.BusyResponse:
+            const { isBusy } = msg.payload;
+            if (isBusy) {
+              PeerUtils.showBusyCalleeAlert(this.alertCtrl);
+              this.hangUp();
+            } else {
+              console.log(`Opening MediaConnection to ${remoteId}`);
+              this.presentCallUI(remoteId, withVideo);
             }
-          });
+            break;
+          case DataChannelEventTypes.CallClosed:
+            // chiamata chiusa dal remote peer
+            dataConnection.close();
+            this.hangUp();
+            break;
+        }
       });
+
+
+    });
+
+
   }
 
   /**
    * Closes the current call and notify the remote peer.
    */
   public closeCurrentCall() {
-    this.dataConnections[this.currentMediaConnection.peer].send({ type: DataChannelEventTypes.CallClosed });
+    this.dataConnections[this.currentMediaConnection.peer].send(PeerUtils.createMessage(DataChannelEventTypes.CallClosed));
     this.hangUp();
   }
 
@@ -304,26 +299,51 @@ export class PeerService {
   private onIncomingDataConnectionOpen(dataConnection: PeerJS.DataConnection) {
 
     this.dataConnections[dataConnection.peer] = dataConnection;
-    console.log('Incoming data connection from peer ' + dataConnection.peer);
+    console.log('Incoming data connection from peer ' + dataConnection);
 
-    PeerUtils.observableFromDataConnection<DataChannelEvent>(dataConnection, 'data')
-      .subscribe(async msg => {
-        console.log(`Received ${DataChannelEventTypes[msg.type]}`);
-        switch (msg.type) {
-          case DataChannelEventTypes.BusyRequest:
-            console.log(`Sending BusyResponse. isBusy = ${this.isInCall}`);
-            dataConnection.send({ type: DataChannelEventTypes.BusyResponse, payload: { isBusy: this.isInCall } });
-            break;
-          case DataChannelEventTypes.CallClosed:
-            dataConnection.close();
+    dataConnection.on('data', async (msg: DataChannelEvent) => {
+      console.log(`Received ${DataChannelEventTypes[msg.type]}`);
+      switch (msg.type) {
+        case DataChannelEventTypes.BusyRequest:
+          const res = PeerUtils.createMessage(DataChannelEventTypes.BusyResponse, { isBusy: this.isInCall });
+          console.log(`Sending BusyResponse`, res, dataConnection);
+          dataConnection.send(res);
+          break;
+        case DataChannelEventTypes.CallClosed:
+          dataConnection.close();
 
-            const alert = await this.modalCtrl.getTop();
-            if (alert) {
-              alert.dismiss();
-            }
-            this.hangUp();
-        }
-      });
+          const alert = await this.modalCtrl.getTop();
+          if (alert) {
+            alert.dismiss();
+          }
+          this.hangUp();
+      }
+    });
+    // dataConnection.on('data', (msg) => console.log('CB: data()', msg));
+
+    /*     fromEvent(dataConnection, 'open').pipe(switchMap(() => {
+          console.log('DataConnection open');
+          return fromEvent<DataChannelEvent>(dataConnection, 'data');
+        })).subscribe(async msg => {
+    
+          console.log(`Received ${DataChannelEventTypes[msg.type]}`);
+          switch (msg.type) {
+            case DataChannelEventTypes.BusyRequest:
+              const res = PeerUtils.createMessage(DataChannelEventTypes.BusyResponse, { isBusy: this.isInCall });
+              console.log(`Sending BusyResponse`, res, dataConnection);
+              dataConnection.send(res);
+              break;
+            case DataChannelEventTypes.CallClosed:
+              dataConnection.close();
+    
+              const alert = await this.modalCtrl.getTop();
+              if (alert) {
+                alert.dismiss();
+              }
+              this.hangUp();
+          }
+    
+        }); */
 
   }
 
@@ -373,13 +393,14 @@ export class PeerService {
     this.isInCall = true;
     this.currentMediaConnection = call;
     this.currentMediaConnection.on('close', () => this.hangUp());
-    await navigator.getUserMedia({ video: withVideo, audio: true }, (stream) => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: withVideo, audio: true });
       this.localStream = stream;
       this.currentMediaConnection.answer(this.localStream);
       this.localVideo$.next(this.localStream);
-    }, (error) => {
-      this.handleError(error);
-    });
+    } catch (ex) {
+      this.handleError(ex);
+    }
 
     this.currentMediaConnection.on('stream', (remoteStream) => {
       this.remoteStream = remoteStream;
