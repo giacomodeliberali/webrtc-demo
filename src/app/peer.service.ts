@@ -40,7 +40,10 @@ export class PeerService {
   private remoteStream: MediaStream;
 
   /** A connection between the local and remote peer. Only once can be established at time */
-  private currentMediaConnection: PeerJS.MediaConnection;
+  private currentMediaConnection: {
+    connection: PeerJS.MediaConnection,
+    withVideo: boolean
+  }
 
   /** The max number of reconnection retries after a disconnection */
   private maxReconnectRetries = 10;
@@ -90,7 +93,11 @@ export class PeerService {
       // , debug: 3
     });
 
-    //this.peer = new Peer();
+    // TODO: remove
+    (window as any).__localPeer = this.peer;
+    (window as any).__peerSvc = this;
+
+    // this.peer = new Peer();
 
     /* this.peer = new Peer(this.localId, {
       host: '192.168.1.226',
@@ -120,14 +127,18 @@ export class PeerService {
    * @param peerId The local peer id
    */
   private onDisconnected(peerId: string) {
-    console.log(`The peer ${peerId} is disconnected. Reconnecting (${this.currentReconnectRetries} of ${this.maxReconnectRetries})...`);
     setTimeout(() => {
+      this.currentReconnectRetries++;
       if (this.currentReconnectRetries < this.maxReconnectRetries) {
+        console.log(`The peer ${peerId} is disconnected. Reconnecting (${this.currentReconnectRetries} of ${this.maxReconnectRetries})...`);
         this.peer.reconnect();
-        this.currentReconnectRetries++;
+        if (!this.peer.disconnected) {
+          this.currentReconnectRetries = 0;
+          console.log(`The peer has reconnected.`);
+        }
       } else {
+        console.log(`Cannot reconnect to server.`);
         this.currentReconnectRetries = 0;
-        this.hangUp();
       }
     }, this.reconnectionTimeout);
   }
@@ -162,14 +173,17 @@ export class PeerService {
       this.localStream = await navigator.mediaDevices.getUserMedia({ video: withVideo, audio: true });
       this.localVideo$.next(this.localStream);
 
-      this.currentMediaConnection = this.peer.call(remoteId, this.localStream, {
-        metadata: {
-          name: 'User ' + this.localId,
-          withVideo
-        }
-      });
+      this.currentMediaConnection = {
+        connection: this.peer.call(remoteId, this.localStream, {
+          metadata: {
+            name: 'User ' + this.localId,
+            withVideo
+          }
+        }),
+        withVideo
+      };
 
-      this.currentMediaConnection.on('stream', (remoteStream) => {
+      this.currentMediaConnection.connection.on('stream', (remoteStream) => {
         this.remoteStream = remoteStream;
         this.remoteVideo$.next(remoteStream);
         if (!!this.floatingVideo$.value) {
@@ -179,11 +193,14 @@ export class PeerService {
           });
         }
       });
+
+      this.currentMediaConnection.connection.on('close', () => this.hangUp()); // to be removed once PeerJS supports reconnect() properly
       this.showModal(withVideo);
     } catch (ex) {
       this.handleError(ex);
     }
   }
+
 
   /**
    * Initiate the process of starting a call. Opens a DataConnection to exchange info
@@ -197,7 +214,6 @@ export class PeerService {
       console.log('Chiamata già in corso');
       return;
     }
-
     const dataConnection = this.dataConnections[remoteId] = this.peer.connect(remoteId, { serialization: 'json' });
     dataConnection.on('open', () => {
 
@@ -227,18 +243,14 @@ export class PeerService {
             break;
         }
       });
-
-
     });
-
-
   }
 
   /**
    * Closes the current call and notify the remote peer.
    */
   public closeCurrentCall() {
-    this.dataConnections[this.currentMediaConnection.peer].send(PeerUtils.createMessage(DataChannelEventTypes.CallClosed));
+    this.dataConnections[this.currentMediaConnection.connection.peer].send(PeerUtils.createMessage(DataChannelEventTypes.CallClosed));
     this.hangUp();
   }
 
@@ -266,7 +278,7 @@ export class PeerService {
     stopTracks(this.remoteStream);
 
     if (this.currentMediaConnection) {
-      this.currentMediaConnection.close();
+      this.currentMediaConnection.connection.close();
     }
 
     console.log('Active connections', this.peer.connections);
@@ -346,7 +358,7 @@ export class PeerService {
         {
           text: 'Rispondi',
           handler: () => {
-            this.onAnswerCall(incomingCall, withVideo);
+            this.onAnswerCall(incomingCall);
           }
         }
       ]
@@ -360,24 +372,30 @@ export class PeerService {
    * @param call The incoming call just accepted
    * @param withVideo Indicates if the call should be audio-only or not
    */
-  private async onAnswerCall(call: PeerJS.MediaConnection, withVideo: boolean) {
+  private async onAnswerCall(call: PeerJS.MediaConnection) {
     this.isInCall = true;
-    this.currentMediaConnection = call;
-    this.currentMediaConnection.on('close', () => this.hangUp());
+    this.currentMediaConnection = {
+      connection: call,
+      withVideo: call.metadata.withVideo
+    };
+    this.currentMediaConnection.connection.on('close', () => this.hangUp()); // to be removed once PeerJS supports reconnect() properly
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: withVideo, audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ video: this.currentMediaConnection.withVideo, audio: true });
       this.localStream = stream;
-      this.currentMediaConnection.answer(this.localStream);
+      this.currentMediaConnection.connection.answer(this.localStream);
       this.localVideo$.next(this.localStream);
     } catch (ex) {
       this.handleError(ex);
     }
 
-    this.currentMediaConnection.on('stream', (remoteStream) => {
+    this.currentMediaConnection.connection.on('stream', (remoteStream) => {
       this.remoteStream = remoteStream;
       this.remoteVideo$.next(remoteStream);
     });
-    this.showModal(withVideo);
+
+    if (!call.metadata.reconnect) {
+      this.showModal(this.currentMediaConnection.withVideo);
+    }
   }
 
 
