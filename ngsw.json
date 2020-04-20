@@ -1,8 +1,8 @@
 {
   "configVersion": 1,
-  "timestamp": 1587387418712,
+  "timestamp": 1587388110411,
   "appData": {
-    "version": "1.0.11-dev"
+    "version": "1.0.13-dev"
   },
   "index": "/webrtc-demo/index.html",
   "assetGroups": [
@@ -28,8 +28,8 @@
         "/webrtc-demo/common-es2015.4857dd7367a60053514e.js",
         "/webrtc-demo/common-es5.4857dd7367a60053514e.js",
         "/webrtc-demo/index.html",
-        "/webrtc-demo/main-es2015.fe24b7052fa3067b96f3.js",
-        "/webrtc-demo/main-es5.fe24b7052fa3067b96f3.js",
+        "/webrtc-demo/main-es2015.6e773d4fff46f7ee0591.js",
+        "/webrtc-demo/main-es5.6e773d4fff46f7ee0591.js",
         "/webrtc-demo/manifest.webmanifest",
         "/webrtc-demo/polyfills-es2015.c1f142d23713235da53a.js",
         "/webrtc-demo/polyfills-es5.c2de70b6e80b58902389.js",
@@ -251,9 +251,9 @@
     "/webrtc-demo/assets/shapes.svg": "638f87e27e6fc7ddfd6e6b262ea70d690f6c7011",
     "/webrtc-demo/common-es2015.4857dd7367a60053514e.js": "97beb6083a04a4b16efa8129de66274ca8b5265c",
     "/webrtc-demo/common-es5.4857dd7367a60053514e.js": "b9d6b9480836a24744716205c5c2b4589d9f58e4",
-    "/webrtc-demo/index.html": "e860d2aa2a11c01cb9fe9aff131ab441e323c519",
-    "/webrtc-demo/main-es2015.fe24b7052fa3067b96f3.js": "1cc47a0667c4ffc1aa26501b48d507712223f54c",
-    "/webrtc-demo/main-es5.fe24b7052fa3067b96f3.js": "3f1485686064b5bc8f1cf819ae0c9cc5dc89bef5",
+    "/webrtc-demo/index.html": "08bfe5c15d1848567482a5f0b4dde500bb09ad29",
+    "/webrtc-demo/main-es2015.6e773d4fff46f7ee0591.js": "804a9f2183312695c5c8e8fdc3eef0dc651f5fdf",
+    "/webrtc-demo/main-es5.6e773d4fff46f7ee0591.js": "840a72fe4b5294aeffc83a5a55b002c3a173ebb3",
     "/webrtc-demo/manifest.webmanifest": "da2061dba175bf2d881980e8596ff5343e2dd7b6",
     "/webrtc-demo/polyfills-es2015.c1f142d23713235da53a.js": "d09f5d54be882e501e006c5c097486eef3dbb188",
     "/webrtc-demo/polyfills-es5.c2de70b6e80b58902389.js": "c1691e038ec6ce2ed635fe4ad19bc62a4d7d8598",
