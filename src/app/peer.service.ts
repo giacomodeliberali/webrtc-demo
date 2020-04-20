@@ -120,27 +120,15 @@ export class PeerService {
    * @param peerId The local peer id
    */
   private onDisconnected(peerId: string) {
-    console.log(`The peer ${peerId} is disconnected. Reconnecting...`);
+    console.log(`The peer ${peerId} is disconnected. Reconnecting (${this.currentReconnectRetries} of ${this.maxReconnectRetries})...`);
 
-    const reconnectionInterval = setInterval(() => {
-
-      if (!this.peer.disconnected || this.peer.destroyed) {
-        // sono connesso di nuovo
-        this.currentReconnectRetries = 0;
-        clearInterval(reconnectionInterval);
-        return;
-      }
-
-      if (this.currentReconnectRetries < this.maxReconnectRetries) {
-        this.peer.reconnect();
-        this.currentReconnectRetries++;
-      } else {
-        this.currentReconnectRetries = 0;
-        clearInterval(reconnectionInterval);
-        this.hangUp();
-      }
-
-    }, this.reconnectionTimeout);
+    if (this.currentReconnectRetries < this.maxReconnectRetries) {
+      this.peer.reconnect();
+      this.currentReconnectRetries++;
+    } else {
+      this.currentReconnectRetries = 0;
+      this.hangUp();
+    }
   }
 
   /**
