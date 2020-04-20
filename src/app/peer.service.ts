@@ -47,7 +47,7 @@ export class PeerService {
   /** The current number of reconnection retries after a disconnection */
   private currentReconnectRetries = 0;
   /** The number of milliseconds a reconnect is called after a disconnection */
-  private reconnectionTimeout = 1500;
+  private reconnectionTimeout = 2000;
 
   /** The modal component to open when a call starts. Used this way to prevent circular dependency */
   private modalComponent: any;
@@ -121,14 +121,15 @@ export class PeerService {
    */
   private onDisconnected(peerId: string) {
     console.log(`The peer ${peerId} is disconnected. Reconnecting (${this.currentReconnectRetries} of ${this.maxReconnectRetries})...`);
-
-    if (this.currentReconnectRetries < this.maxReconnectRetries) {
-      this.peer.reconnect();
-      this.currentReconnectRetries++;
-    } else {
-      this.currentReconnectRetries = 0;
-      this.hangUp();
-    }
+    setTimeout(() => {
+      if (this.currentReconnectRetries < this.maxReconnectRetries) {
+        this.peer.reconnect();
+        this.currentReconnectRetries++;
+      } else {
+        this.currentReconnectRetries = 0;
+        this.hangUp();
+      }
+    }, this.reconnectionTimeout);
   }
 
   /**
