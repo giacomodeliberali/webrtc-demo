@@ -90,9 +90,9 @@ export class PeerService {
       // , debug: 3
     });
 
-    //this.peer = new Peer();
+    // this.peer = new Peer();
 
-/*     this.peer = new Peer(this.localId, {
+    /* this.peer = new Peer(this.localId, {
       host: '192.168.1.226',
       port: 5001,
       path: '/'
@@ -203,43 +203,56 @@ export class PeerService {
    */
   public async callPeerById(remoteId: string, withVideo: boolean) {
 
-    if (this.isInCall) {
-      console.log('Chiamata già in corso');
-      return;
-    }
+    const dataConn = this.peer.connect(remoteId, { serialization: 'json' });
+    dataConn.on('open', () => {
+      console.log('DataChannelOpen');
+      dataConn.send('Hello from sender');
 
-    const dataConnection = this.dataConnections[remoteId] = this.peer.connect(remoteId, { serialization: 'json' });
-    dataConnection.on('open', () => {
-
-      console.log('Opened data connection to peer ' + dataConnection.peer);
-
-      const busyRequest = PeerUtils.createMessage(DataChannelEventTypes.BusyRequest);
-      console.log(`Sending BusyRequest...`, busyRequest, dataConnection);
-      dataConnection.send(busyRequest);
-
-      dataConnection.on('data', async (msg: DataChannelEvent) => {
-        console.log(`Received ${DataChannelEventTypes[msg.type]}`);
-        switch (msg.type) {
-          case DataChannelEventTypes.BusyResponse:
-            const { isBusy } = msg.payload;
-            if (isBusy) {
-              PeerUtils.showBusyCalleeAlert(this.alertCtrl);
-              this.hangUp();
-            } else {
-              console.log(`Opening MediaConnection to ${remoteId}`);
-              this.presentCallUI(remoteId, withVideo);
-            }
-            break;
-          case DataChannelEventTypes.CallClosed:
-            // chiamata chiusa dal remote peer
-            dataConnection.close();
-            this.hangUp();
-            break;
-        }
+      dataConn.on('data', event => {
+        console.log('Received', event);
       });
-
-
     });
+
+    /*     console.log(`Opening MediaConnection to ${remoteId}`);
+        this.presentCallUI(remoteId, withVideo); */
+
+    /*     if (this.isInCall) {
+          console.log('Chiamata già in corso');
+          return;
+        }
+
+        const dataConnection = this.dataConnections[remoteId] = this.peer.connect(remoteId, { serialization: 'json' });
+        dataConnection.on('open', () => {
+
+          console.log('Opened data connection to peer ' + dataConnection.peer);
+
+          const busyRequest = PeerUtils.createMessage(DataChannelEventTypes.BusyRequest);
+          console.log(`Sending BusyRequest...`, busyRequest, dataConnection);
+          dataConnection.send(busyRequest);
+
+          dataConnection.on('data', async (msg: DataChannelEvent) => {
+            console.log(`Received ${DataChannelEventTypes[msg.type]}`);
+            switch (msg.type) {
+              case DataChannelEventTypes.BusyResponse:
+                const { isBusy } = msg.payload;
+                if (isBusy) {
+                  PeerUtils.showBusyCalleeAlert(this.alertCtrl);
+                  this.hangUp();
+                } else {
+                  console.log(`Opening MediaConnection to ${remoteId}`);
+                  this.presentCallUI(remoteId, withVideo);
+                }
+                break;
+              case DataChannelEventTypes.CallClosed:
+                // chiamata chiusa dal remote peer
+                dataConnection.close();
+                this.hangUp();
+                break;
+            }
+          });
+
+
+        }); */
 
 
   }
@@ -298,34 +311,30 @@ export class PeerService {
    */
   private onIncomingDataConnectionOpen(dataConnection: PeerJS.DataConnection) {
 
-    this.dataConnections[dataConnection.peer] = dataConnection;
-    console.log('Incoming data connection from peer ' + dataConnection);
+    dataConnection.on('open', () => {
 
-    dataConnection.on('data', async (msg: DataChannelEvent) => {
-      console.log(`Received ${DataChannelEventTypes[msg.type]}`);
-      switch (msg.type) {
-        case DataChannelEventTypes.BusyRequest:
-          const res = PeerUtils.createMessage(DataChannelEventTypes.BusyResponse, { isBusy: this.isInCall });
-          console.log(`Sending BusyResponse`, res, dataConnection);
-          dataConnection.send(res);
-          break;
-        case DataChannelEventTypes.CallClosed:
-          dataConnection.close();
+      // Non funziona su iOS
+      console.log('Incoming DataChannel');
 
-          const alert = await this.modalCtrl.getTop();
-          if (alert) {
-            alert.dismiss();
-          }
-          this.hangUp();
-      }
+      dataConnection.on('data', (event) => {
+        console.log('Received inside open', event);
+
+        dataConnection.send('Hello from receiver inside open!');
+      });
     });
-    // dataConnection.on('data', (msg) => console.log('CB: data()', msg));
 
-    /*     fromEvent(dataConnection, 'open').pipe(switchMap(() => {
-          console.log('DataConnection open');
-          return fromEvent<DataChannelEvent>(dataConnection, 'data');
-        })).subscribe(async msg => {
-    
+    dataConnection.on('data', (event) => {
+      console.log('Received outside open', event);
+      dataConnection.send('Hello from receiver outside open with NO timeout!'); // arriva su Windows non su iOS
+      setTimeout(() => {
+        dataConnection.send('Hello from receiver outside open inside setTimeout(0)!');  // arriva su Windows e su iOS
+      }, 0);
+    });
+
+    /*     this.dataConnections[dataConnection.peer] = dataConnection;
+        console.log('Incoming data connection from peer ' + dataConnection);
+
+        dataConnection.on('data', async (msg: DataChannelEvent) => {
           console.log(`Received ${DataChannelEventTypes[msg.type]}`);
           switch (msg.type) {
             case DataChannelEventTypes.BusyRequest:
@@ -335,14 +344,38 @@ export class PeerService {
               break;
             case DataChannelEventTypes.CallClosed:
               dataConnection.close();
-    
+
               const alert = await this.modalCtrl.getTop();
               if (alert) {
                 alert.dismiss();
               }
               this.hangUp();
           }
-    
+        }); */
+    // dataConnection.on('data', (msg) => console.log('CB: data()', msg));
+
+    /*     fromEvent(dataConnection, 'open').pipe(switchMap(() => {
+          console.log('DataConnection open');
+          return fromEvent<DataChannelEvent>(dataConnection, 'data');
+        })).subscribe(async msg => {
+
+          console.log(`Received ${DataChannelEventTypes[msg.type]}`);
+          switch (msg.type) {
+            case DataChannelEventTypes.BusyRequest:
+              const res = PeerUtils.createMessage(DataChannelEventTypes.BusyResponse, { isBusy: this.isInCall });
+              console.log(`Sending BusyResponse`, res, dataConnection);
+              dataConnection.send(res);
+              break;
+            case DataChannelEventTypes.CallClosed:
+              dataConnection.close();
+
+              const alert = await this.modalCtrl.getTop();
+              if (alert) {
+                alert.dismiss();
+              }
+              this.hangUp();
+          }
+
         }); */
 
   }
