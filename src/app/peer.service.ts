@@ -166,8 +166,6 @@ export class PeerService {
    * @param withVideo Indicates if the call should be audio-only or not
    */
   private async presentCallUI(remoteId: string, withVideo: boolean) {
-    // utente libero
-    this.isInCall = true;
 
     try {
       this.localStream = await navigator.mediaDevices.getUserMedia({ video: withVideo, audio: true });
@@ -195,6 +193,8 @@ export class PeerService {
       });
 
       this.currentMediaConnection.connection.on('close', () => this.hangUp()); // to be removed once PeerJS supports reconnect() properly
+      // utente libero
+      this.isInCall = true;
       this.showModal(withVideo);
     } catch (ex) {
       this.handleError(ex);
@@ -261,6 +261,8 @@ export class PeerService {
    */
   private async hangUp() {
 
+    console.log("HANG UP!");
+
     if (!this.currentMediaConnection || !this.isInCall) {
       return;
     }
@@ -320,7 +322,7 @@ export class PeerService {
         case DataChannelEventTypes.CallClosed:
           dataConnection.close();
 
-          const alert = await this.modalCtrl.getTop();
+          const alert = await this.alertCtrl.getTop();
           if (alert) {
             alert.dismiss();
           }
@@ -352,6 +354,7 @@ export class PeerService {
         {
           text: 'Annulla',
           handler: () => {
+            this.dataConnections[incomingCall.peer].send(PeerUtils.createMessage(DataChannelEventTypes.CallClosed));
             incomingCall.close();
           }
         },
@@ -384,18 +387,20 @@ export class PeerService {
       this.localStream = stream;
       this.currentMediaConnection.connection.answer(this.localStream);
       this.localVideo$.next(this.localStream);
+
+      this.currentMediaConnection.connection.on('stream', (remoteStream) => {
+        this.remoteStream = remoteStream;
+        this.remoteVideo$.next(remoteStream);
+      });
+
+      this.showModal(this.currentMediaConnection.withVideo);
     } catch (ex) {
       this.handleError(ex);
+      this.closeCurrentCall();
     }
 
-    this.currentMediaConnection.connection.on('stream', (remoteStream) => {
-      this.remoteStream = remoteStream;
-      this.remoteVideo$.next(remoteStream);
-    });
 
-    if (!call.metadata.reconnect) {
-      this.showModal(this.currentMediaConnection.withVideo);
-    }
+
   }
 
 
@@ -448,7 +453,7 @@ export class PeerService {
           }
         ]
       });
-      this.hangUp();
+      // this.closeCurrentCall();
       return alert.present();
     }
   }
