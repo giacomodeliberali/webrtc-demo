@@ -136,6 +136,7 @@ export class PeerService {
         this.currentReconnectRetries++;
       } else {
         this.currentReconnectRetries = 0;
+        clearInterval(reconnectionInterval);
         this.hangUp();
       }
 
@@ -259,7 +260,7 @@ export class PeerService {
    */
   private async hangUp() {
 
-    if (!this.currentMediaConnection) {
+    if (!this.currentMediaConnection || !this.isInCall) {
       return;
     }
 
