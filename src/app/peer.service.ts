@@ -92,7 +92,7 @@ export class PeerService {
 
     //this.peer = new Peer();
 
-/*     this.peer = new Peer(this.localId, {
+    /* this.peer = new Peer(this.localId, {
       host: '192.168.1.226',
       port: 5001,
       path: '/'
@@ -307,7 +307,13 @@ export class PeerService {
         case DataChannelEventTypes.BusyRequest:
           const res = PeerUtils.createMessage(DataChannelEventTypes.BusyResponse, { isBusy: this.isInCall });
           console.log(`Sending BusyResponse`, res, dataConnection);
-          dataConnection.send(res);
+          setTimeout(() => {
+            /* Do not remove the setTimeout!
+             * On iOS devises message sent without the setTimeout
+             * inside the on('data') callback wont be received by the remotePeer.
+            */
+            dataConnection.send(res);
+          });
           break;
         case DataChannelEventTypes.CallClosed:
           dataConnection.close();
@@ -319,31 +325,6 @@ export class PeerService {
           this.hangUp();
       }
     });
-    // dataConnection.on('data', (msg) => console.log('CB: data()', msg));
-
-    /*     fromEvent(dataConnection, 'open').pipe(switchMap(() => {
-          console.log('DataConnection open');
-          return fromEvent<DataChannelEvent>(dataConnection, 'data');
-        })).subscribe(async msg => {
-    
-          console.log(`Received ${DataChannelEventTypes[msg.type]}`);
-          switch (msg.type) {
-            case DataChannelEventTypes.BusyRequest:
-              const res = PeerUtils.createMessage(DataChannelEventTypes.BusyResponse, { isBusy: this.isInCall });
-              console.log(`Sending BusyResponse`, res, dataConnection);
-              dataConnection.send(res);
-              break;
-            case DataChannelEventTypes.CallClosed:
-              dataConnection.close();
-    
-              const alert = await this.modalCtrl.getTop();
-              if (alert) {
-                alert.dismiss();
-              }
-              this.hangUp();
-          }
-    
-        }); */
 
   }
 
